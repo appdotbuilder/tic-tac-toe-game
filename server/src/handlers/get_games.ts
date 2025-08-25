@@ -1,11 +1,28 @@
+import { db } from '../db';
+import { gamesTable } from '../db/schema';
 import { type Game } from '../schema';
+import { desc } from 'drizzle-orm';
 
-export async function getGames(): Promise<Game[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to:
-    // 1. Fetch all games from the database
-    // 2. Return an array of games ordered by most recent first
-    // 3. This can be useful for showing a list of all games or game history
-    
-    return Promise.resolve([]);
-}
+export const getGames = async (): Promise<Game[]> => {
+  try {
+    // Fetch all games from the database, ordered by most recent first
+    const results = await db.select()
+      .from(gamesTable)
+      .orderBy(desc(gamesTable.created_at))
+      .execute();
+
+    // Return the games with proper type structure
+    return results.map(game => ({
+      id: game.id,
+      board: game.board as ("X" | "O" | null)[], // JSON field needs type assertion
+      current_player: game.current_player,
+      status: game.status,
+      winner: game.winner,
+      created_at: game.created_at!,
+      updated_at: game.updated_at!
+    }));
+  } catch (error) {
+    console.error('Failed to fetch games:', error);
+    throw error;
+  }
+};

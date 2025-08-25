@@ -1,21 +1,35 @@
+import { db } from '../db';
+import { gamesTable } from '../db/schema';
 import { type CreateGameInput, type Game } from '../schema';
 
-export async function createGame(input: CreateGameInput): Promise<Game> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new Tic-Tac-Toe game with:
-    // - Empty 3x3 board (9 null values)
-    // - X as the starting player
-    // - Status set to 'in_progress'
-    // - No winner initially
-    // - Current timestamps for created_at and updated_at
-    
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+export const createGame = async (input: CreateGameInput): Promise<Game> => {
+  try {
+    // Create a new game with default state
+    const result = await db.insert(gamesTable)
+      .values({
         board: [null, null, null, null, null, null, null, null, null], // Empty 3x3 board
-        current_player: 'X', // X always starts
-        status: 'in_progress',
-        winner: null,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Game);
-}
+        current_player: 'X', // X always starts first
+        status: 'in_progress', // Game starts in progress
+        winner: null, // No winner at start
+        // created_at and updated_at will be set automatically by database defaults
+      })
+      .returning()
+      .execute();
+
+    const game = result[0];
+    
+    // Return the game with proper typing
+    return {
+      id: game.id,
+      board: game.board as (null | 'X' | 'O')[], // Type assertion for JSON board
+      current_player: game.current_player,
+      status: game.status,
+      winner: game.winner,
+      created_at: game.created_at,
+      updated_at: game.updated_at
+    };
+  } catch (error) {
+    console.error('Game creation failed:', error);
+    throw error;
+  }
+};

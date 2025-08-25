@@ -1,25 +1,42 @@
+import { db } from '../db';
+import { gamesTable } from '../db/schema';
 import { type ResetGameInput, type Game } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function resetGame(input: ResetGameInput): Promise<Game> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to:
-    // 1. Find the existing game by ID
-    // 2. Reset the game to initial state:
-    //    - Clear the board (all cells become null)
-    //    - Set current_player back to 'X'
-    //    - Set status to 'in_progress'
-    //    - Clear the winner
-    //    - Update the updated_at timestamp
-    // 3. Return the reset game state
-    // 4. Throw an error if the game is not found
-    
-    return Promise.resolve({
-        id: input.game_id,
-        board: [null, null, null, null, null, null, null, null, null], // Reset to empty board
+  try {
+    // Find the existing game by ID
+    const existingGames = await db.select()
+      .from(gamesTable)
+      .where(eq(gamesTable.id, input.game_id))
+      .execute();
+
+    if (existingGames.length === 0) {
+      throw new Error(`Game with ID ${input.game_id} not found`);
+    }
+
+    // Reset the game to initial state
+    const result = await db.update(gamesTable)
+      .set({
+        board: [null, null, null, null, null, null, null, null, null], // Clear the board
         current_player: 'X', // X always starts
         status: 'in_progress',
-        winner: null,
-        created_at: new Date(), // Placeholder - should keep original created_at
-        updated_at: new Date() // Updated timestamp
-    } as Game);
+        winner: null, // Clear the winner
+        updated_at: new Date() // Update the timestamp
+        // Keep the original created_at unchanged
+      })
+      .where(eq(gamesTable.id, input.game_id))
+      .returning()
+      .execute();
+
+    // Cast the board from unknown (JSON) to the proper BoardState type
+    const resetGame = result[0];
+    return {
+      ...resetGame,
+      board: resetGame.board as ('X' | 'O' | null)[]
+    };
+  } catch (error) {
+    console.error('Game reset failed:', error);
+    throw error;
+  }
 }
